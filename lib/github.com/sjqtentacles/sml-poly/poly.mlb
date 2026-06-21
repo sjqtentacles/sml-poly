@@ -1,0 +1,10 @@
+(* MLton basis file for the sml-poly library.
+ * Brings the RING/FIELD/POLY/POLY_FIELD signatures, the Poly and PolyField
+ * functors, and the IntRing / IntPoly / RatField / RatPoly instances into
+ * scope. *)
+local
+  $(SML_LIB)/basis/basis.mlb
+in
+  poly.sig
+  poly.sml
+end
