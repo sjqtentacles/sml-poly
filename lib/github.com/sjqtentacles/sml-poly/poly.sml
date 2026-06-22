@@ -184,6 +184,93 @@ struct
       in
         monic g
       end
+
+  (* ---- Interpolation ---------------------------------------------------- *)
+
+  (* The degree-1 polynomial (x - c). *)
+  fun linFactor c = fromList [F.neg c, F.one]
+
+  fun lagrange [] = zero
+    | lagrange pts =
+        let
+          (* term for the point (xi, yi); `others` are the remaining abscissae *)
+          fun termFor (xi, yi, others) =
+              let
+                fun build ([], nump, den) = (nump, den)
+                  | build (xj :: rest, nump, den) =
+                      build (rest,
+                             mul (nump, linFactor xj),
+                             F.mul (den, F.add (xi, F.neg xj)))
+                val (nump, den) = build (others, one, F.one)
+                val c = F.mul (yi, F.inv den)
+              in
+                scale (c, nump)
+              end
+          fun fst (a, _) = a
+          fun loop (_, [], acc) = acc
+            | loop (prev, (xi, yi) :: rest, acc) =
+                let
+                  val others = (map fst prev) @ (map fst rest)
+                  val acc' = add (acc, termFor (xi, yi, others))
+                in
+                  loop (prev @ [(xi, yi)], rest, acc')
+                end
+        in
+          loop ([], pts, zero)
+        end
+
+  fun newton [] = zero
+    | newton pts =
+        let
+          val n = length pts
+          val xa = Array.fromList (map (fn (a, _) => a) pts)
+          val ya = Array.fromList (map (fn (_, b) => b) pts)   (* becomes the divided diffs *)
+          fun levels k =
+              if k >= n then ()
+              else
+                let
+                  fun inner i =
+                      if i < k then ()
+                      else
+                        let
+                          val num = F.add (Array.sub (ya, i), F.neg (Array.sub (ya, i - 1)))
+                          val den = F.add (Array.sub (xa, i), F.neg (Array.sub (xa, i - k)))
+                        in
+                          Array.update (ya, i, F.mul (num, F.inv den));
+                          inner (i - 1)
+                        end
+                in
+                  inner (n - 1); levels (k + 1)
+                end
+          val () = levels 1
+          (* nested form: c0 + (x-x0)(c1 + (x-x1)(c2 + ...)) *)
+          fun horner (i, acc) =
+              if i < 0 then acc
+              else horner (i - 1,
+                           add (monomial (Array.sub (ya, i), 0),
+                                mul (linFactor (Array.sub (xa, i)), acc)))
+        in
+          horner (n - 2, monomial (Array.sub (ya, n - 1), 0))
+        end
+
+  (* ---- Root refinement -------------------------------------------------- *)
+
+  fun findRoot (p, seed, iters) =
+      let
+        val dp = derivative p
+        fun step (xv, k) =
+            if k <= 0 then xv
+            else
+              let
+                val fx = eval p xv
+                val dfx = eval dp xv
+              in
+                if F.equal (dfx, F.zero) then xv
+                else step (F.add (xv, F.neg (F.mul (fx, F.inv dfx))), k - 1)
+              end
+      in
+        step (seed, iters)
+      end
 end
 
 (* ---- Ready-made instances ---------------------------------------------- *)

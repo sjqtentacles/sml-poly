@@ -21,6 +21,37 @@ and so on -- all from the same code.
 When coefficients form a `FIELD`, the `PolyField` functor adds Euclidean
 division (`divMod`/`div`/`rem`), the monic polynomial `gcd`, and `monic`.
 
+## Interpolation and root refinement
+
+Because a field has total division, `PolyField` also provides **exact**
+polynomial interpolation and a Newton root-refinement primitive:
+
+```sml
+val lagrange : (coeff * coeff) list -> t   (* Lagrange-basis interpolant       *)
+val newton   : (coeff * coeff) list -> t   (* same poly, via divided diffs     *)
+val findRoot : t * coeff * int -> coeff    (* iters of x' = x - p(x)/p'(x)     *)
+```
+
+`lagrange` and `newton` both build the unique interpolating polynomial of
+degree `< n` through `n` points with distinct abscissae (they return the same
+polynomial; `Div` is raised on a repeated x-coordinate, and `[]` maps to
+`zero`). Over the rationals (`RatPoly`) interpolation is exact -- every sample
+point is reproduced with no rounding:
+
+```sml
+structure FP = RatPoly
+fun rat n = (IntInf.fromInt n, IntInf.fromInt 1) : RatField.t
+val pts = [(rat 0, rat 1), (rat 1, rat 3), (rat 2, rat 2)]
+val p   = FP.lagrange pts                  (* passes exactly through the points *)
+```
+
+`findRoot (p, seed, iters)` runs Newton's method from `seed`, working over any
+field and remaining exact over the rationals (it stops early if the derivative
+evaluates to zero). A general ordered/tolerance-based `roots` solver is
+intentionally omitted, since the library is parameterized over an arbitrary
+field with no ordering or notion of "real"; `findRoot` is the
+design-compatible primitive callers can iterate from chosen seeds.
+
 ## Portability
 
 Pure Standard ML using only the Basis library. Verified on:

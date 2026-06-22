@@ -96,4 +96,32 @@ sig
   (* Divide through by the leading coefficient to make the polynomial monic.
      `monic zero` is `zero`. *)
   val monic  : t -> t
+
+  (* ---- Interpolation ----
+
+     Given a list of (x_i, y_i) sample points with *distinct* abscissae, build
+     the unique interpolating polynomial of degree < (number of points) passing
+     through them.  `lagrange` uses the Lagrange basis; `newton` uses Newton's
+     divided differences; both return the same polynomial.  The empty list maps
+     to `zero`.  Raises `Div` if two points share an x-coordinate.
+
+     Because coefficients form a field, interpolation is *exact* (e.g. over the
+     rationals it reproduces each sample point with no rounding). *)
+  val lagrange : (coeff * coeff) list -> t
+  val newton   : (coeff * coeff) list -> t
+
+  (* ---- Root refinement (Newton's method) ----
+
+     `findRoot (p, seed, iters)` performs `iters` Newton steps,
+     x' = x - p(x)/p'(x), starting from `seed`, and returns the refined
+     estimate.  It works over any field and stays exact over the rationals; if
+     the derivative evaluates to the field's zero the iteration stops early and
+     returns the current estimate.
+
+     A general real-root *solver* (`roots`/`realRoots`) is intentionally not
+     provided: the library is parameterized over an arbitrary field with no
+     ordering or notion of "real", so a tolerance-based solver has no meaning at
+     this level.  `findRoot` is the design-compatible primitive; callers over an
+     ordered/`real` field can iterate it from chosen seeds. *)
+  val findRoot : t * coeff * int -> coeff
 end

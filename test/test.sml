@@ -161,11 +161,83 @@ fun runField () =
                    (FP.equal (FP.monic (fp [4, 2]), fp [2, 1]))
   in () end
 
+(* ---- Interpolation and Newton root refinement (exact, over rationals) --- *)
+
+(* a rational literal a/b, normalized through the field constructor *)
+fun ratFrac (a, b) = RatField.mul ((IntInf.fromInt a, IntInf.fromInt 1),
+                                   RatField.inv (IntInf.fromInt b, IntInf.fromInt 1))
+
+(* |a| < b, assuming b > 0 (RatField keeps the denominator positive) *)
+fun ratLessAbs (a : RatField.t, b : RatField.t) =
+    let
+      val (an, ad) = a
+      val (bn, bd) = b
+      val an = if an < 0 then ~an else an
+    in
+      an * bd < bn * ad
+    end
+
+fun runInterp () =
+  let
+    val eps = ratFrac (1, 1000000)   (* 1e-6 *)
+
+    (* recover a known degree-2 polynomial Q = 2 + 3x - x^2 from samples *)
+    val q = fp [2, 3, ~1]
+    fun sampleAt xi = (rat xi, FP.eval q (rat xi))
+    val pts3 = [sampleAt 0, sampleAt 1, sampleAt 2]
+    val lag = FP.lagrange pts3
+    val newt = FP.newton pts3
+    val () = check "lagrange recovers 2+3x-x^2" (FP.equal (lag, q))
+    val () = check "newton recovers 2+3x-x^2"   (FP.equal (newt, q))
+    val () = check "lagrange = newton (deg 2)"  (FP.equal (lag, newt))
+
+    (* an extra collinear-degree sample must not change the result *)
+    val pts4 = pts3 @ [sampleAt 5]
+    val () = check "lagrange stable with extra point" (FP.equal (FP.lagrange pts4, q))
+    val () = check "newton stable with extra point"   (FP.equal (FP.newton pts4, q))
+
+    (* arbitrary points: interpolant must reproduce each sample exactly *)
+    val pts = [(rat 0, rat 1), (rat 1, rat 3), (rat 2, rat 2), (rat 3, rat 5)]
+    val li = FP.lagrange pts
+    val ni = FP.newton pts
+    val () = check "lagrange = newton (arbitrary)" (FP.equal (li, ni))
+    val () = List.app
+               (fn (xi, yi) =>
+                  check ("interp reproduces sample x=" ^ RatField.toString xi)
+                        (RatField.equal (FP.eval li xi, yi)))
+               pts
+    val () = check "interpolant degree < #points" (FP.degree li <= 3)
+
+    (* Newton root refinement on (x-1)(x-2)(x-3) *)
+    val cubic = FP.mul (FP.mul (fp [~1, 1], fp [~2, 1]), fp [~3, 1])
+    fun nearRoot (r, seedOffsetNum) =
+        let
+          val seed = RatField.add (rat r, ratFrac (seedOffsetNum, 10))
+          val approx = FP.findRoot (cubic, seed, 8)
+          val distToR = RatField.add (approx, RatField.neg (rat r))
+          val pval = FP.eval cubic approx
+        in
+          check ("findRoot -> " ^ Int.toString r ^ " (within eps)")
+                (ratLessAbs (distToR, eps));
+          check ("p(root~=" ^ Int.toString r ^ ") ~= 0")
+                (ratLessAbs (pval, eps))
+        end
+    val () = nearRoot (1, ~1)   (* seed 0.9 *)
+    val () = nearRoot (2, 1)    (* seed 2.1 *)
+    val () = nearRoot (3, 1)    (* seed 3.1 *)
+    (* seeding exactly at a root is a fixed point *)
+    val () = check "findRoot fixed at exact root"
+                   (RatField.equal (FP.findRoot (cubic, rat 2, 5), rat 2))
+    val () = check "findRoot constant-deriv guard (deriv 0 stops)"
+                   (RatField.equal (FP.findRoot (fp [5], rat 3, 4), rat 3))
+  in () end
+
 fun run () =
   let
     val () = runInt ()
     val () = runBivariate ()
     val () = runField ()
+    val () = runInterp ()
   in
     print ("\n" ^ Int.toString (!passed) ^ " passed, "
            ^ Int.toString (!failed) ^ " failed\n");
