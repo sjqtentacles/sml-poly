@@ -69,6 +69,7 @@ the sources in order.
 make test        # build + run the suite under MLton (default)
 make test-poly   # run the suite under Poly/ML
 make all-tests   # run under both
+make example     # build + run the demo
 make clean
 ```
 
@@ -136,6 +137,27 @@ Bivariate polynomials come for free by nesting:
 
 ```sml
 structure BiPoly = Poly (IntPoly)   (* coefficients are themselves polynomials *)
+```
+
+## Example
+
+[`examples/demo.sml`](examples/demo.sml) evaluates and differentiates an
+integer polynomial, then does exact division, gcd, and Lagrange interpolation
+over the rationals. Coefficients print as integers or `num/den`, so the output
+is identical on every run and on both compilers. Run it with:
+
+```
+$ make example
+Integer polynomials:
+  f(x)        = 1 + 2*x + 3*x^2
+  f(2)        = 17
+  f'(x)       = 2 + 6*x
+  (x+1)(x-1)  = ~1 + 1*x^2
+
+Rational polynomials:
+  (x^2-1) / (x-1) = 1 + 1*x  rem 0
+  gcd(x^2-1, (x-1)^2) = ~1 + 1*x
+  lagrange of {(0,?),(1,?),(2,?)} = 2 + 3*x + ~1*x^2
 ```
 
 ## Project layout
