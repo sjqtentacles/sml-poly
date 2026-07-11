@@ -1,13 +1,10 @@
 (* Dependency-free test runner for the polynomial library.
  * Prints one line per assertion and exits non-zero if any assertion fails. *)
 
-val passed = ref 0
-val failed = ref 0
+structure Tests =
+struct
 
-fun check (name : string) (cond : bool) : unit =
-    if cond
-    then (passed := !passed + 1; print ("ok   - " ^ name ^ "\n"))
-    else (failed := !failed + 1; print ("FAIL - " ^ name ^ "\n"))
+val check = Harness.check
 
 fun raisesDiv (thunk : unit -> 'a) : bool =
     (ignore (thunk ()); false) handle General.Div => true | _ => false
@@ -239,9 +236,7 @@ fun run () =
     val () = runField ()
     val () = runInterp ()
   in
-    print ("\n" ^ Int.toString (!passed) ^ " passed, "
-           ^ Int.toString (!failed) ^ " failed\n");
-    OS.Process.exit (if !failed = 0 then OS.Process.success else OS.Process.failure)
+    Harness.run ()
   end
 
-val () = run ()
+end
